@@ -1,4 +1,4 @@
-# RAG Chatbot
+# Chainlit Pydantic AI RAG Chatbot
 
 A retrieval-augmented generation chatbot built with Pydantic AI and Chainlit. Loads documents from S3, generates embeddings, and answers questions using Claude.
 

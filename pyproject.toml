@@ -1,7 +1,7 @@
 [project]
 name = "rag-chatbot"
 version = "0.1.0"
-description = "Add your description here"
+description = "A retrieval-augmented generation chatbot built with Pydantic AI and Chainlit. Loads documents from S3, generates embeddings, and answers questions using Claude."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
