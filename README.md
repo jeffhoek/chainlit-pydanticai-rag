@@ -1,0 +1,78 @@
+# RAG Chatbot
+
+A retrieval-augmented generation chatbot built with Pydantic AI and Chainlit. Loads documents from S3, generates embeddings, and answers questions using Claude.
+
+## Features
+
+- Loads and chunks text data from S3
+- In-memory vector store with NumPy cosine similarity
+- OpenAI embeddings (text-embedding-3-small)
+- Claude LLM via Pydantic AI agent
+- Chainlit web interface
+
+## Requirements
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) package manager
+
+## Installation
+
+1. Clone the repository and navigate to the project directory:
+
+   ```bash
+   cd pydantic-ai
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   uv sync
+   ```
+
+3. Create a `.env` file from the template:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Fill in your credentials in `.env`:
+
+   ```
+   ANTHROPIC_API_KEY=your-anthropic-api-key
+   OPENAI_API_KEY=your-openai-api-key
+   AWS_ACCESS_KEY_ID=your-aws-access-key
+   AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+   S3_BUCKET=your-bucket-name
+   S3_KEY=path/to/your/data.txt
+   ```
+
+## Quickstart
+
+1. Start the chatbot:
+
+   ```bash
+   uv run chainlit run app.py
+   ```
+
+2. Open your browser to http://localhost:8000
+
+3. Ask questions about your S3 data
+
+## Configuration
+
+Optional settings can be adjusted in `.env`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TOP_K` | 5 | Number of documents to retrieve |
+| `CHUNK_SIZE` | 500 | Characters per chunk |
+| `CHUNK_OVERLAP` | 50 | Overlap between chunks |
+| `AWS_REGION` | us-east-1 | S3 region |
+
+## Architecture
+
+```
+S3 Data → Chunking → OpenAI Embeddings → In-Memory Vector Store
+                                                    ↓
+User Query → Chainlit → Pydantic AI Agent → Retrieve Tool → Claude Response
+```
