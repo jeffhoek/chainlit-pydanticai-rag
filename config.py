@@ -17,8 +17,6 @@ class Settings(BaseSettings):
 
     # RAG Configuration
     top_k: int = 5
-    chunk_size: int = 500
-    chunk_overlap: int = 50
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

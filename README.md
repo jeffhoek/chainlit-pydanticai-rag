@@ -65,8 +65,6 @@ Optional settings can be adjusted in `.env`:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TOP_K` | 5 | Number of documents to retrieve |
-| `CHUNK_SIZE` | 500 | Characters per chunk |
-| `CHUNK_OVERLAP` | 50 | Overlap between chunks |
 | `AWS_REGION` | us-east-1 | S3 region |
 
 ## Architecture
