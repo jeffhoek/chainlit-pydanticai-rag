@@ -15,12 +15,13 @@ class Deps:
 
 
 rag_agent = Agent(
-    "anthropic:claude-sonnet-4-20250514",
+    settings.llm_model,
     deps_type=Deps,
     system_prompt=(
         "You are a helpful assistant. Use the retrieve tool to find relevant "
-        "context before answering questions. Base your answers on the retrieved "
-        "context when available."
+        "context before answering questions. Answer the user's question helpfully "
+        "and concisely based on the retrieved context. If the answer is not in the "
+        "context, say you don't have that information."
     ),
 )
 
