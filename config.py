@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # RAG Configuration
     top_k: int = 5
-    llm_model: str = "anthropic:claude-sonnet-4-20250514"
+    llm_model: str = "anthropic:claude-haiku-4-5-20251001"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

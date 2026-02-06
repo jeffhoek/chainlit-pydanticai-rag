@@ -64,8 +64,20 @@ Optional settings can be adjusted in `.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `LLM_MODEL` | anthropic:claude-haiku-4-5-20251001 | LLM for generating responses |
 | `TOP_K` | 5 | Number of documents to retrieve |
 | `AWS_REGION` | us-east-1 | S3 region |
+
+### LLM Model Options
+
+Any [Pydantic AI supported model](https://ai.pydantic.dev/models/) can be used:
+
+| Model | Description |
+|-------|-------------|
+| `anthropic:claude-haiku-4-5-20251001` | Fast, concise responses (recommended) |
+| `anthropic:claude-sonnet-4-20250514` | More capable, slower |
+| `openai:gpt-4o-mini` | OpenAI alternative |
+| `openai:gpt-4o` | OpenAI flagship model |
 
 ## Architecture
 
