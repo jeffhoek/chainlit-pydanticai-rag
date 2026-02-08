@@ -1,3 +1,5 @@
+import os
+
 import chainlit as cl
 from openai import AsyncOpenAI
 
@@ -6,6 +8,20 @@ from rag.agent import Deps, rag_agent
 from rag.data_loader import chunk_text, load_from_s3
 from rag.embeddings import generate_embeddings_batch
 from rag.vector_store import VectorStore
+
+
+@cl.password_auth_callback
+def auth_callback(username: str, password: str):
+    expected_username = os.getenv("APP_USERNAME", "admin")
+    expected_password = os.getenv("APP_PASSWORD")
+
+    if not expected_password:
+        return None
+
+    if username == expected_username and password == expected_password:
+        return cl.User(identifier=username)
+
+    return None
 
 
 @cl.on_chat_start
