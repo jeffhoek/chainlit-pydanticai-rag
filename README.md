@@ -46,6 +46,26 @@ A retrieval-augmented generation chatbot built with Pydantic AI and Chainlit. Lo
    S3_KEY=path/to/your/data.txt
    ```
 
+## Authentication
+
+The app requires username/password login. To set it up:
+
+1. Generate an auth secret:
+
+   ```bash
+   uv run chainlit create-secret
+   ```
+
+2. Add the following to your `.env`:
+
+   ```
+   APP_USERNAME=admin
+   APP_PASSWORD=your-password
+   CHAINLIT_AUTH_SECRET=<paste-secret-from-step-1>
+   ```
+
+   `APP_USERNAME` defaults to `admin` if not set.
+
 ## Quickstart
 
 1. Start the chatbot:

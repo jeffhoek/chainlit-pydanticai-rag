@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     top_k: int = 5
     llm_model: str = "anthropic:claude-haiku-4-5-20251001"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()
