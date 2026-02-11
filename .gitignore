@@ -13,3 +13,4 @@ wheels/
 .chainlit/translations/
 .claude
 
+.env.yaml
