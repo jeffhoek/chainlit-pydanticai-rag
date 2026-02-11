@@ -15,6 +15,8 @@ class VectorStore:
         """Store documents with their embeddings."""
         self.documents.extend(documents)
         new_embeddings = np.array(embeddings, dtype=np.float32)
+        norms = np.linalg.norm(new_embeddings, axis=1, keepdims=True)
+        new_embeddings = new_embeddings / norms
 
         if self.embeddings is None:
             self.embeddings = new_embeddings
@@ -28,14 +30,8 @@ class VectorStore:
 
         query = np.array(query_embedding, dtype=np.float32)
 
-        # Normalize vectors for cosine similarity
         query_norm = query / np.linalg.norm(query)
-        embeddings_norm = self.embeddings / np.linalg.norm(
-            self.embeddings, axis=1, keepdims=True
-        )
-
-        # Compute cosine similarities
-        similarities = embeddings_norm @ query_norm
+        similarities = self.embeddings @ query_norm
 
         # Get top-k indices
         top_indices = np.argsort(similarities)[::-1][:top_k]
