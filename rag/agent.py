@@ -17,12 +17,7 @@ class Deps:
 rag_agent = Agent(
     settings.llm_model,
     deps_type=Deps,
-    system_prompt=(
-        "You are a helpful assistant. Use the retrieve tool to find relevant "
-        "context before answering questions. Answer the user's question helpfully "
-        "and concisely based on the retrieved context. If the answer is not in the "
-        "context, say you don't have that information."
-    ),
+    system_prompt=settings.system_prompt,
 )
 
 
