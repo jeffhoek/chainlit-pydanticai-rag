@@ -87,6 +87,7 @@ Optional settings can be adjusted in `.env`:
 | `LLM_MODEL` | anthropic:claude-haiku-4-5-20251001 | LLM for generating responses |
 | `TOP_K` | 5 | Number of documents to retrieve |
 | `AWS_REGION` | us-east-1 | S3 region |
+| `SYSTEM_PROMPT` | *(see .env.example)* | System prompt for the RAG agent |
 
 ### LLM Model Options
 
