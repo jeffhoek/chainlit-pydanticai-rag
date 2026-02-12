@@ -97,8 +97,6 @@ Any [Pydantic AI supported model](https://ai.pydantic.dev/models/) can be used:
 |-------|-------------|
 | `anthropic:claude-haiku-4-5-20251001` | Fast, concise responses (recommended) |
 | `anthropic:claude-sonnet-4-20250514` | More capable, slower |
-| `openai:gpt-4o-mini` | OpenAI alternative |
-| `openai:gpt-4o` | OpenAI flagship model |
 
 ## Docker
 
