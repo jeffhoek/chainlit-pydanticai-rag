@@ -99,6 +99,30 @@ Any [Pydantic AI supported model](https://ai.pydantic.dev/models/) can be used:
 | `openai:gpt-4o-mini` | OpenAI alternative |
 | `openai:gpt-4o` | OpenAI flagship model |
 
+## Docker
+
+Build and run locally with Docker (or Podman):
+
+```bash
+docker build -t chainlit-pydanticai .
+```
+```
+docker run -p 8080:8080 --env-file .env chainlit-pydanticai:latest
+```
+
+Then open http://localhost:8080.
+
+## Deployment
+
+See [docs/deploy-gcp-cloud-run.md](docs/deploy-gcp-cloud-run.md) for deploying to Google Cloud Run.
+
+Helper scripts in `scripts/`:
+
+| Script | Purpose |
+|--------|---------|
+| `create-gcp-secrets.sh` | Interactively create GCP Secret Manager secrets and grant access |
+| `env2yaml.sh` | Convert a `.env` file to YAML format for Cloud Run |
+
 ## Architecture
 
 ```

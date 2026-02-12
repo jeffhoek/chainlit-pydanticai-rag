@@ -44,38 +44,28 @@ gcloud iam service-accounts create chatbot-runner \
 
 Store sensitive values in Secret Manager rather than passing them as plain environment variables.
 
-### Create secrets
+### Individual commands (reference)
 
-For each secret, pipe the value into `gcloud secrets create`:
+Create a secret:
 
 ```bash
-echo -n "YOUR_VALUE" | gcloud secrets create ANTHROPIC_API_KEY --data-file=-
-echo -n "YOUR_VALUE" | gcloud secrets create OPENAI_API_KEY --data-file=-
-echo -n "YOUR_VALUE" | gcloud secrets create AWS_ACCESS_KEY_ID --data-file=-
-echo -n "YOUR_VALUE" | gcloud secrets create AWS_SECRET_ACCESS_KEY --data-file=-
-echo -n "YOUR_VALUE" | gcloud secrets create APP_PASSWORD --data-file=-
-echo -n "YOUR_VALUE" | gcloud secrets create APP_USERNAME --data-file=-
-echo -n "YOUR_VALUE" | gcloud secrets create CHAINLIT_AUTH_SECRET --data-file=-
+echo -n "VALUE" | gcloud secrets create SECRET_NAME --data-file=-
 ```
 
-### Grant the Cloud Run service account access to each secret
+Grant the Cloud Run service account access to it:
 
 ```bash
-SECRETS=(
-  ANTHROPIC_API_KEY
-  OPENAI_API_KEY
-  AWS_ACCESS_KEY_ID
-  AWS_SECRET_ACCESS_KEY
-  APP_PASSWORD
-  APP_USERNAME
-  CHAINLIT_AUTH_SECRET
-)
+gcloud secrets add-iam-policy-binding SECRET_NAME \
+  --member="serviceAccount:chatbot-runner@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
 
-for SECRET in "${SECRETS[@]}"; do
-  gcloud secrets add-iam-policy-binding "$SECRET" \
-    --member="serviceAccount:chatbot-runner@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
-    --role="roles/secretmanager.secretAccessor"
-done
+### Create all secrets at once
+
+Run the included helper script to be prompted for each secret value. It creates the secret and grants access to the Cloud Run service account in one step:
+
+```bash
+./scripts/create-gcp-secrets.sh
 ```
 
 ### Update a secret value later
@@ -89,7 +79,7 @@ echo -n "new-value" | gcloud secrets versions add SECRET_NAME --data-file=-
 Cloud Run accepts non-secret environment variables from a YAML file. Use the included helper script to generate it from your `.env`:
 
 ```bash
-./env2yaml.sh .env > .env.yaml
+./scripts/env2yaml.sh .env > .env.yaml
 ```
 
 Then **edit `.env.yaml`** to remove all secret values (API keys, passwords, credentials). Only keep non-secret configuration like:
@@ -174,22 +164,6 @@ echo -n "new-value" | gcloud secrets versions add SECRET_NAME --data-file=-
 gcloud run services update chainlit-pydanticai-rag \
   --region us-central1
 ```
-
-## Local Container Testing
-
-Build and run locally before deploying:
-
-```bash
-# Build
-docker build -t chainlit-pydanticai .
-# or: podman build -t chainlit-pydanticai .
-
-# Run
-docker run -p 8080:8080 --env-file .env chainlit-pydanticai:latest
-# or: podman run -p 8080:8080 --env-file .env chainlit-pydanticai:latest
-```
-
-Then open http://localhost:8080.
 
 ## Cleanup
 
