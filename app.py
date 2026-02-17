@@ -1,13 +1,18 @@
 import os
 
 import chainlit as cl
+from langfuse import get_client
 from openai import AsyncOpenAI
+from pydantic_ai import Agent
 
 from config import settings
 from rag.agent import Deps, rag_agent
 from rag.data_loader import chunk_text, load_from_s3
 from rag.embeddings import generate_embeddings_batch
 from rag.vector_store import VectorStore
+
+get_client()            # Initialize Langfuse (reads LANGFUSE_* env vars)
+Agent.instrument_all()  # Enable OTel instrumentation on all PydanticAI agents
 
 
 @cl.password_auth_callback
