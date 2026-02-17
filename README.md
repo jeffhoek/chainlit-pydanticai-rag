@@ -122,6 +122,10 @@ Helper scripts in `scripts/`:
 | `create-gcp-secrets.sh` | Interactively create GCP Secret Manager secrets and grant access |
 | `env2yaml.sh` | Convert a `.env` file to YAML format for Cloud Run |
 
+## Observability
+
+See [docs/langfuse-setup.md](docs/langfuse-setup.md) for self-hosted Langfuse tracing via Podman Compose.
+
 ## Architecture
 
 ```
