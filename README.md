@@ -20,7 +20,7 @@ A retrieval-augmented generation chatbot built with Pydantic AI and Chainlit. Lo
 1. Clone the repository and navigate to the project directory:
 
    ```bash
-   cd pydantic-ai
+   cd chainlit-pydanticai-rag
    ```
 
 2. Install dependencies:
