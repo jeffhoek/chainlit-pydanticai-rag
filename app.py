@@ -2,12 +2,18 @@ import os
 
 import chainlit as cl
 from openai import AsyncOpenAI
+from pydantic_ai import Agent
 
 from config import settings
 from rag.agent import Deps, rag_agent
 from rag.data_loader import chunk_text, load_data
 from rag.embeddings import generate_embeddings_batch
 from rag.vector_store import VectorStore
+
+if os.getenv("LANGFUSE_PUBLIC_KEY"):
+    from langfuse import get_client
+    get_client()
+    Agent.instrument_all()
 
 
 @cl.password_auth_callback
