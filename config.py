@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
@@ -6,14 +8,17 @@ class Settings(BaseSettings):
     anthropic_api_key: str
     openai_api_key: str
 
-    # AWS Credentials
-    aws_access_key_id: str
-    aws_secret_access_key: str
+    # AWS Credentials (optional — only needed when using S3)
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
     aws_region: str = "us-east-1"
 
-    # S3 Configuration
-    s3_bucket: str
-    s3_key: str
+    # S3 Configuration (optional — falls back to local data/ dir if unset)
+    s3_bucket: Optional[str] = None
+    s3_key: Optional[str] = None
+
+    # Local fallback
+    data_path: str = "data"
 
     # RAG Configuration
     top_k: int = 5
