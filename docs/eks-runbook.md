@@ -359,3 +359,4 @@ kubectl scale deployment chainlit-rag -n rag --replicas=2
 | `AWS_REGION` | `us-east-2` | AWS region for S3 |
 | `LLM_MODEL` | `anthropic:claude-haiku-4-5-20251001` | Pydantic AI model string |
 | `TOP_K` | `5` | Number of chunks returned by RAG retrieval |
+| `SYSTEM_PROMPT` | _(see configmap)_ | System prompt injected into the Pydantic AI agent |
