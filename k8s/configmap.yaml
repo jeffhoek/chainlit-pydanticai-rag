@@ -6,8 +6,5 @@ metadata:
 data:
   APP_USERNAME: "admin"
   AWS_REGION: "us-east-2"
-  # Update these to point at your S3 knowledge base
-  S3_BUCKET: "your-s3-bucket-name"
-  S3_KEY: "path/to/knowledge-base.txt"
   LLM_MODEL: "anthropic:claude-haiku-4-5-20251001"
   TOP_K: "5"

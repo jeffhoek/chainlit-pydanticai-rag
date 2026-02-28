@@ -16,7 +16,7 @@ spec:
       containers:
         - name: chainlit-rag
           # Updated by CI/CD: kubectl set image deployment/chainlit-rag chainlit-rag=<ecr-image>:<sha>
-          image: <account-id>.dkr.ecr.us-east-2.amazonaws.com/chainlit-pydanticai-rag:latest
+          image: 958170895933.dkr.ecr.us-east-2.amazonaws.com/chainlit-pydanticai-rag:latest
           ports:
             - containerPort: 8080
           envFrom:

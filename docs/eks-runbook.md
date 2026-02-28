@@ -201,26 +201,21 @@ uv run chainlit create-secret
 # Create the k8s secret (substitute real values)
 kubectl create secret generic rag-secrets \
   --namespace rag \
-  --from-literal=ANTHROPIC_API_KEY=<your-anthropic-api-key> \
-  --from-literal=OPENAI_API_KEY=<your-openai-api-key> \
-  --from-literal=APP_PASSWORD=<choose-a-strong-password> \
-  --from-literal=CHAINLIT_AUTH_SECRET=<from-chainlit-create-secret> \
-  --from-literal=AWS_ACCESS_KEY_ID=<aws-key-with-s3-read-access> \
-  --from-literal=AWS_SECRET_ACCESS_KEY=<aws-secret>
+  --from-literal=ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  --from-literal=OPENAI_API_KEY=$OPENAI_API_KEY \
+  --from-literal=APP_PASSWORD=$APP_PASSWORD \
+  --from-literal=CHAINLIT_AUTH_SECRET=$CHAINLIT_AUTH_SECRET \
+  --from-literal=AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+  --from-literal=AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+  --from-literal=S3_BUCKET=$S3_BUCKET \
+  --from-literal=S3_KEY=$S3_KEY
 ```
 
 > **S3 IAM Alternative (IRSA):** For production, consider using IAM Roles for Service Accounts (IRSA) instead of passing `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` as secrets. IRSA eliminates long-lived credentials for S3 access. See the [IRSA documentation](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
-### Step 6 — Configure the ConfigMap
-
-Edit `k8s/configmap.yaml` and fill in your S3 bucket and key:
+### Step 6 — Apply the ConfigMap
 
 ```bash
-# Edit the file to set real values for:
-#   S3_BUCKET: your-s3-bucket-name
-#   S3_KEY: path/to/your-knowledge-base.txt
-# (Leave LLM_MODEL, TOP_K, APP_USERNAME as-is unless you want to change them)
-
 kubectl apply -f k8s/configmap.yaml
 ```
 
@@ -353,6 +348,8 @@ kubectl scale deployment chainlit-rag -n rag --replicas=2
 | `CHAINLIT_AUTH_SECRET` | Chainlit session signing secret (`chainlit create-secret`) |
 | `AWS_ACCESS_KEY_ID` | AWS credentials for S3 data loading |
 | `AWS_SECRET_ACCESS_KEY` | AWS credentials for S3 data loading |
+| `S3_BUCKET` | S3 bucket containing the knowledge base |
+| `S3_KEY` | S3 object key for the knowledge base file |
 
 ### Stored as Kubernetes ConfigMap (`rag-config`)
 
@@ -360,7 +357,5 @@ kubectl scale deployment chainlit-rag -n rag --replicas=2
 |----------|---------|-------------|
 | `APP_USERNAME` | `admin` | Chainlit login username |
 | `AWS_REGION` | `us-east-2` | AWS region for S3 |
-| `S3_BUCKET` | _(set in configmap)_ | S3 bucket containing knowledge base |
-| `S3_KEY` | _(set in configmap)_ | S3 object key for knowledge base file |
 | `LLM_MODEL` | `anthropic:claude-haiku-4-5-20251001` | Pydantic AI model string |
 | `TOP_K` | `5` | Number of chunks returned by RAG retrieval |
