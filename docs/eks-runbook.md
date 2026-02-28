@@ -1,6 +1,6 @@
 # EKS Deployment Runbook — chainlit-pydanticai-rag
 
-This runbook covers deploying the Chainlit + Pydantic AI RAG chatbot to an AWS EKS cluster using GitHub Actions CI/CD. It is modeled after the `blackjackpy-trainer` reference deployment.
+This runbook covers deploying the Chainlit + Pydantic AI RAG chatbot to an AWS EKS cluster using GitHub Actions CI/CD.
 
 ---
 
@@ -86,7 +86,7 @@ Note the registry URI from the output (format: `<account-id>.dkr.ecr.us-east-2.a
 This allows GitHub Actions to assume an IAM role without storing long-lived AWS credentials.
 
 ```bash
-# Check if OIDC provider already exists (may already be set up from blackjackpy-trainer)
+# Check if OIDC provider already exists (may already be set up from another deployed application)
 aws iam list-open-id-connect-providers | grep token.actions.githubusercontent.com
 ```
 
