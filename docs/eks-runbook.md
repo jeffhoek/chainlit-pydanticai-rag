@@ -99,16 +99,33 @@ aws iam create-open-id-connect-provider \
   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
 ```
 
-### Step 3 — Create IAM Deploy Role
+The deploy role ARN follows a fixed format, so you can add the GitHub Actions secret now — before the role exists. All you need is your account ID:
 
-Replace `<github-org>` and `<repo-name>` with your GitHub org/username and repo name.
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+echo "arn:aws:iam::${ACCOUNT_ID}:role/github-actions-chainlit-rag" | pbcopy
+```
+
+In your GitHub repository:
+1. Go to **Settings → Secrets and variables → Actions**
+2. Click **New repository secret**
+3. Name: `AWS_DEPLOY_ROLE_ARN`
+4. Value: paste the ARN copied above
+
+### Step 3 — Create the IAM Deploy Role
+
+An IAM role has two independent parts: a **trust policy** that controls *who* can assume the role, and **permission policies** that control *what* the role can do once assumed. This step handles the first part — creating the role and scoping assumption to GitHub Actions OIDC tokens from this repository. Permissions are attached in Step 4.
+
+Replace `<your-github-org>` with your GitHub org or username.
 
 ```bash
 GITHUB_ORG=<your-github-org>
 REPO_NAME=chainlit-pydanticai-rag
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+```
 
-# Trust policy — allows GitHub Actions to assume this role
+- Write a trust policy document scoping role assumption to GitHub Actions OIDC tokens from this repo
+```
 cat > /tmp/trust-policy.json <<EOF
 {
   "Version": "2012-10-17",
@@ -131,18 +148,28 @@ cat > /tmp/trust-policy.json <<EOF
   ]
 }
 EOF
+```
 
-# Create the role
+- Create the IAM role using the trust policy
+```
 aws iam create-role \
   --role-name github-actions-chainlit-rag \
   --assume-role-policy-document file:///tmp/trust-policy.json
+```
 
-# Attach ECR permissions (push/pull images)
+### Step 4 — Attach Permissions to the Deploy Role
+
+With the role created, attach the policies that define what it's authorized to do. These are evaluated independently of the trust policy — a caller must satisfy *both* to successfully use the role.
+
+- Attach the ECR PowerUser managed policy to allow the role to push and pull images
+```
 aws iam attach-role-policy \
   --role-name github-actions-chainlit-rag \
   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+```
 
-# Inline policy for EKS access (describe cluster + update kubeconfig)
+- Write an inline policy granting the role permission to describe EKS clusters (needed to fetch kubeconfig)
+```
 cat > /tmp/eks-policy.json <<EOF
 {
   "Version": "2012-10-17",
@@ -158,47 +185,51 @@ cat > /tmp/eks-policy.json <<EOF
   ]
 }
 EOF
+```
 
+- Attach the EKS inline policy to the role
+```
 aws iam put-role-policy \
   --role-name github-actions-chainlit-rag \
   --policy-name eks-describe \
   --policy-document file:///tmp/eks-policy.json
-
-# Get the role ARN (you'll need this for Step 6)
-aws iam get-role \
-  --role-name github-actions-chainlit-rag \
-  --query "Role.Arn" \
-  --output text
 ```
 
-### Step 4 — Grant the Deploy Role kubectl Access
+### Step 5 — Grant the Deploy Role kubectl Access
+
+Add the IAM role to the EKS cluster's `aws-auth` ConfigMap, mapping it to a Kubernetes user with `system:masters` (cluster-admin) access so the GitHub Actions workflow can run `kubectl` commands.
 
 ```bash
 eksctl create iamidentitymapping \
   --cluster eks-proto \
   --region us-east-2 \
-  --arn arn:aws:iam::<account-id>:role/github-actions-chainlit-rag \
+  --arn arn:aws:iam::${ACCOUNT_ID}:role/github-actions-chainlit-rag \
   --username github-actions \
   --group system:masters
 ```
 
 > **Note:** `system:masters` is the simplest way to grant full cluster access for CI/CD. For tighter security, create a custom ClusterRole limited to the `rag` namespace.
 
-### Step 5 — Create the Kubernetes Namespace and Secrets
+### Step 6 — Create the Kubernetes Namespace and Secrets
 
 ```bash
 # Update your kubeconfig to point at eks-proto
 aws eks update-kubeconfig --name eks-proto --region us-east-2
+```
 
-# Create the namespace
+- Create the `rag` namespace in the cluster
+```
 kubectl apply -f k8s/namespace.yaml
+```
 
-# Generate a Chainlit auth secret
-# Run this and copy the output value
+- Generate a Chainlit session signing secret and copy the output for the next command
+```
 uv run chainlit create-secret
 # → something like: CHAINLIT_AUTH_SECRET="abc123..."
+```
 
-# Create the k8s secret (substitute real values)
+- Create the Kubernetes secret containing all app credentials and config values
+```
 kubectl create secret generic rag-secrets \
   --namespace rag \
   --from-literal=ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
@@ -212,20 +243,6 @@ kubectl create secret generic rag-secrets \
 ```
 
 > **S3 IAM Alternative (IRSA):** For production, consider using IAM Roles for Service Accounts (IRSA) instead of passing `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` as secrets. IRSA eliminates long-lived credentials for S3 access. See the [IRSA documentation](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
-
-### Step 6 — Apply the ConfigMap
-
-```bash
-kubectl apply -f k8s/configmap.yaml
-```
-
-### Step 7 — Add GitHub Actions Secret
-
-In your GitHub repository:
-1. Go to **Settings → Secrets and variables → Actions**
-2. Click **New repository secret**
-3. Name: `AWS_DEPLOY_ROLE_ARN`
-4. Value: the role ARN from Step 3 (format: `arn:aws:iam::<account-id>:role/github-actions-chainlit-rag`)
 
 ---
 
@@ -248,36 +265,48 @@ The workflow:
 
 ## Post-Deploy Verification
 
+- Watch pod status until `Ready` (startup can take 30-60s while embeddings are generated)
 ```bash
-# Check pod status (may take 30-60s to become Ready due to embedding generation)
 kubectl get pods -n rag -w
+```
 
-# Check logs for successful startup
+- Stream logs to confirm successful startup
+```bash
 kubectl logs -n rag deploy/chainlit-rag --follow
+```
 
-# Get the ALB hostname
+- Get the ALB hostname from the `HOSTS` column
+```bash
 kubectl get ingress -n rag
-# HOSTS column will show the ALB DNS name
+```
 
-# Health check
+- Confirm the app is healthy
+```bash
 curl http://<alb-hostname>/healthz
 # Expected: {"status":"ok"}
+```
 
-# Open in browser
+- Open in browser — log in with `APP_USERNAME` / `APP_PASSWORD`
+```bash
 open http://<alb-hostname>
-# → Chainlit login page; use APP_USERNAME / APP_PASSWORD
 ```
 
 ---
 
 ## Rollback
 
+- Roll back to the previous deployment
 ```bash
-# Roll back to the previous deployment
 kubectl rollout undo deployment/chainlit-rag -n rag
+```
 
-# Or roll back to a specific revision
+- To roll back to a specific revision, first list available revisions
+```bash
 kubectl rollout history deployment/chainlit-rag -n rag
+```
+
+- Then roll back to the chosen revision
+```bash
 kubectl rollout undo deployment/chainlit-rag -n rag --to-revision=<N>
 ```
 
