@@ -30,6 +30,24 @@ def auth_callback(username: str, password: str):
     return None
 
 
+def _quick_query_actions() -> list[cl.Action]:
+    return [
+        cl.Action(name="quick_query", label=label, payload={"query": label})
+        for label in settings.action_buttons
+    ]
+
+
+@cl.action_callback("quick_query")
+async def on_quick_query(action: cl.Action) -> None:
+    query = action.payload["query"]
+    deps = cl.user_session.get("deps")
+    if deps is None:
+        await cl.Message(content="Error: Knowledge base not initialized. Please refresh the page.").send()
+        return
+    result = await rag_agent.run(query, deps=deps)
+    await cl.Message(content=result.output, actions=_quick_query_actions()).send()
+
+
 @cl.on_chat_start
 async def on_chat_start() -> None:
     """Initialize the RAG system on chat start."""
@@ -55,7 +73,8 @@ async def on_chat_start() -> None:
     cl.user_session.set("deps", deps)
 
     await cl.Message(
-        content=f"Ready! Loaded {len(chunks)} chunks from the knowledge base."
+        content=f"Ready! Loaded {len(chunks)} chunks from the knowledge base.",
+        actions=_quick_query_actions(),
     ).send()
 
 
@@ -71,4 +90,4 @@ async def on_message(message: cl.Message) -> None:
         return
 
     result = await rag_agent.run(message.content, deps=deps)
-    await cl.Message(content=result.output).send()
+    await cl.Message(content=result.output, actions=_quick_query_actions()).send()

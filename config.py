@@ -30,6 +30,9 @@ class Settings(BaseSettings):
         "context, say you don't have that information."
     )
 
+    # Action Buttons (optional)
+    action_buttons: list[str] = []
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
