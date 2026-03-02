@@ -13,6 +13,7 @@ spec:
       labels:
         app: chainlit-rag
     spec:
+      serviceAccountName: chainlit-rag
       containers:
         - name: chainlit-rag
           # Updated by CI/CD: kubectl set image deployment/chainlit-rag chainlit-rag=<ecr-image>:<sha>

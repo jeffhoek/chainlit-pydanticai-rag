@@ -222,6 +222,11 @@ aws eks update-kubeconfig --name eks-proto --region us-east-2
 kubectl apply -f k8s/namespace.yaml
 ```
 
+- Create the ServiceAccount that EKS Pod Identity will bind the S3 role to
+```
+kubectl apply -f k8s/serviceaccount.yaml
+```
+
 - Generate a Chainlit session signing secret and copy the output for the next command
 ```
 uv run chainlit create-secret
@@ -229,6 +234,23 @@ uv run chainlit create-secret
 ```
 
 - Create the Kubernetes secret containing all app credentials and config values
+```bash
+echo "ANTHROPIC_API_KEY" && read -s ANTHROPIC_API_KEY
+echo "OPENAI_API_KEY" && read -s OPENAI_API_KEY
+echo "APP_PASSWORD" && read -s APP_PASSWORD \
+echo "CHAINLIT_AUTH_SECRET" && read -s CHAINLIT_AUTH_SECRET \
+echo "S3_BUCKET" && read -s S3_BUCKET \
+echo "S3_KEY" && read -s S3_KEY
+```
+
+Or equivalently with a loop:
+
+```bash
+for var in ANTHROPIC_API_KEY OPENAI_API_KEY APP_PASSWORD CHAINLIT_AUTH_SECRET S3_BUCKET S3_KEY; do
+  echo "$var" && read -rs $var
+done
+```
+
 ```
 kubectl create secret generic rag-secrets \
   --namespace rag \
@@ -236,13 +258,81 @@ kubectl create secret generic rag-secrets \
   --from-literal=OPENAI_API_KEY=$OPENAI_API_KEY \
   --from-literal=APP_PASSWORD=$APP_PASSWORD \
   --from-literal=CHAINLIT_AUTH_SECRET=$CHAINLIT_AUTH_SECRET \
-  --from-literal=AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
-  --from-literal=AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
   --from-literal=S3_BUCKET=$S3_BUCKET \
   --from-literal=S3_KEY=$S3_KEY
 ```
 
-> **S3 IAM Alternative (IRSA):** For production, consider using IAM Roles for Service Accounts (IRSA) instead of passing `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` as secrets. IRSA eliminates long-lived credentials for S3 access. See the [IRSA documentation](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+> `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are not stored as secrets — S3 access uses EKS Pod Identity instead. See Step 7.
+
+### Step 7 — Configure EKS Pod Identity for S3 Access
+
+The `eks-pod-identity-agent` addon injects temporary AWS credentials into pods via a ServiceAccount-to-IAM-role binding, eliminating the need for static `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` credentials.
+
+#### Create the S3 IAM role
+
+- Write a trust policy allowing EKS Pod Identity to assume the role
+```
+cat > /tmp/pod-identity-trust.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Service": "pods.eks.amazonaws.com" },
+    "Action": ["sts:AssumeRole", "sts:TagSession"]
+  }]
+}
+EOF
+```
+
+- Create the role
+```
+aws iam create-role \
+  --role-name chainlit-rag-s3 \
+  --assume-role-policy-document file:///tmp/pod-identity-trust.json
+```
+
+- Write an inline policy granting read access to your S3 bucket
+```
+S3_BUCKET=<your-bucket-name>
+cat > /tmp/s3-read-policy.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["s3:GetObject", "s3:ListBucket"],
+    "Resource": [
+      "arn:aws:s3:::${S3_BUCKET}",
+      "arn:aws:s3:::${S3_BUCKET}/*"
+    ]
+  }]
+}
+EOF
+```
+
+- Attach the policy to the role
+```
+aws iam put-role-policy \
+  --role-name chainlit-rag-s3 \
+  --policy-name s3-read \
+  --policy-document file:///tmp/s3-read-policy.json
+```
+
+#### Create the PodIdentityAssociation
+
+Link the `chainlit-rag` Kubernetes ServiceAccount (applied in Step 6) to the IAM role:
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+aws eks create-pod-identity-association \
+  --cluster-name eks-proto \
+  --region us-east-2 \
+  --namespace rag \
+  --service-account chainlit-rag \
+  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/chainlit-rag-s3
+```
+
+The EKS Pod Identity Agent automatically injects temporary credentials into any pod using the `chainlit-rag` ServiceAccount. No service account annotations are required.
 
 ---
 
@@ -375,10 +465,10 @@ kubectl scale deployment chainlit-rag -n rag --replicas=2
 | `OPENAI_API_KEY` | OpenAI API key for embeddings |
 | `APP_PASSWORD` | Chainlit login password |
 | `CHAINLIT_AUTH_SECRET` | Chainlit session signing secret (`chainlit create-secret`) |
-| `AWS_ACCESS_KEY_ID` | AWS credentials for S3 data loading |
-| `AWS_SECRET_ACCESS_KEY` | AWS credentials for S3 data loading |
 | `S3_BUCKET` | S3 bucket containing the knowledge base |
 | `S3_KEY` | S3 object key for the knowledge base file |
+
+> S3 credentials are not stored here — the pod acquires temporary AWS credentials automatically via EKS Pod Identity (see Step 7).
 
 ### Stored as Kubernetes ConfigMap (`rag-config`)
 
