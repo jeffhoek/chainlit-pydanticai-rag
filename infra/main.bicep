@@ -96,10 +96,6 @@ module appService 'modules/app-service.bicep' = {
 module rbac 'modules/rbac.bicep' = {
   name: 'rbac'
   dependsOn: [
-    identity
-    acr
-    keyVault
-    storage
     appService
   ]
   params: {
@@ -114,10 +110,6 @@ module rbac 'modules/rbac.bicep' = {
 // Step 7: Azure Policy assignments
 module policy 'modules/policy.bicep' = {
   name: 'policy'
-  params: {
-    environment: environment
-    application: appName
-  }
 }
 
 output appServiceUrl string = 'https://${appService.outputs.defaultHostName}'

@@ -80,19 +80,114 @@ az group create \
 
 ## Step 2: Azure DevOps Setup (one-time)
 
-1. In Azure DevOps, go to **Project Settings → Service connections**
-2. Create a **GitHub** service connection → name it `github-chainlit-rag` → authorize the repo
-3. Create an **Azure Resource Manager** service connection:
-   - Choose **Workload Identity federation (automatic)**
-   - Scope to the `rg-chainlit-rag-dev` resource group
-   - Name it `azure-chainlit-rag`
-   - Azure DevOps automatically creates the federated credential in Entra ID
-4. Find the pipeline service principal Object ID:
-   - Entra ID → **App registrations** → search for the service connection name → copy **Object ID**
-5. In the pipeline, add a variable `PIPELINE_SP_OBJECT_ID` (non-secret) with that Object ID
-6. Create an ADO **Environment** named `chainlit-rag-dev` (used as an optional approval gate in DeployInfra/DeployApp stages)
+> **New to Azure DevOps?** There are two separate portals used in this step:
+> - **Azure DevOps** → [dev.azure.com](https://dev.azure.com) — pipelines, service connections, environments
+> - **Azure Portal** → [portal.azure.com](https://portal.azure.com) — all Azure resources (Key Vault, App Service, Microsoft Entra ID, etc.)
+>
+> Keep both open in separate tabs.
 
-> The pipeline SP needs **Contributor** on the resource group to create resources on the first run. The Bicep `rbac` module then grants it the minimal ongoing roles (AcrPush, Website Contributor) for subsequent runs.
+### 2.0 Connect Azure DevOps to your Entra ID tenant (new organizations only)
+
+If your Azure DevOps organization was just created, it is not yet linked to the Microsoft Entra ID (formerly Azure Active Directory) tenant that manages your Azure subscription. Without this link, Azure DevOps cannot list your resource groups or automatically create app registrations.
+
+In **Azure DevOps** ([dev.azure.com](https://dev.azure.com)):
+
+1. Click **Organization Settings** (bottom-left gear icon)
+2. In the left sidebar under **General**, click **Microsoft Entra**
+3. Click **Connect directory**
+4. Select the Entra ID tenant that owns your Azure subscription
+5. Confirm — you will be signed out and redirected back to Azure DevOps
+
+### 2.1 Open Service Connections
+
+In **Azure DevOps** ([dev.azure.com](https://dev.azure.com)):
+
+1. Select your project
+2. Click **Project Settings** (bottom-left gear icon)
+3. In the left sidebar under **Pipelines**, click **Service connections**
+4. Click **New service connection** (top right)
+
+### 2.2 Create the GitHub service connection
+
+This connection allows Azure Pipelines to check out your source code from GitHub.
+
+1. Select **GitHub** → click **Next**
+2. Under **Authentication method**, leave **Grant authorization** selected
+3. Under **OAuth Configuration**, the only option is **AzurePipelines** — this is correct, leave it selected
+4. Click **Authorize** — a GitHub OAuth window will open; approve access
+5. Under **Service connection name**, enter: `github-chainlit-rag`
+6. Check **Grant access permission to all pipelines**
+7. Click **Save**
+
+### 2.3 Create the Azure Resource Manager service connection
+
+This connection allows Azure Pipelines to deploy resources to your Azure subscription using Workload Identity Federation (WIF) — a modern, credential-free authentication method.
+
+1. Click **New service connection** again
+2. Select **Azure Resource Manager** → click **Next**
+3. Leave **Identity type** as **App registration (automatic)** (recommended)
+4. Leave **Credential** as **Workload identity federation** (recommended)
+5. Leave **Scope level** as **Subscription**
+6. Under **Subscription**, select your Azure subscription
+7. Under **Resource group**, select `rg-chainlit-rag-dev`
+   - If the dropdown shows "Loading..." indefinitely, your Entra ID directory is not connected — complete step 2.0 first, then return here
+8. Under **Service connection name**, enter: `azure-chainlit-rag`
+9. Check **Grant access permission to all pipelines**
+10. Click **Save**
+
+Azure DevOps automatically creates an App Registration (service principal) in your Entra ID tenant to represent this connection.
+
+### 2.4 Find the pipeline service principal Object ID
+
+The pipeline service principal is the identity Azure Pipelines uses to deploy infrastructure. Its Object ID is needed so Bicep can grant it the correct roles.
+
+> **App Registration vs Enterprise Application:** Creating a service connection creates two related objects in Entra ID: an **App Registration** (the application definition) and an **Enterprise Application** (the service principal — the actual identity that runs and gets role assignments). For role assignments, you need the **Enterprise Application's Object ID**, not the App Registration's Object ID. These are different GUIDs.
+
+The easiest way is via the CLI:
+
+```bash
+az ad sp list --display-name "azure-chainlit-rag" --query "[0].id" -o tsv
+```
+
+Or via the **Azure Portal** tab ([portal.azure.com](https://portal.azure.com)):
+
+1. In the top search bar, search for **Microsoft Entra ID** and select it
+2. In the left sidebar, click **Enterprise applications** (not App registrations)
+3. In the search box, type `azure-chainlit-rag`
+4. Click the matching result
+5. On the Overview page, copy the **Object ID** value
+
+### 2.5 Add the Object ID as a pipeline variable
+
+This value is passed to Bicep so it can grant the pipeline identity the roles it needs to deploy resources.
+
+In your local repository, open `azure-pipelines.yml` and add a `variables:` block (or add to the existing one):
+
+```yaml
+variables:
+  PIPELINE_SP_OBJECT_ID: '<paste-your-object-id-here>'
+```
+
+This is not a secret — it is safe to commit to the repository.
+
+### 2.6 Create the Deployment Environment
+
+Azure DevOps Environments are used to track deployments and optionally require manual approval before the pipeline deploys to a given target.
+
+In **Azure DevOps** ([dev.azure.com](https://dev.azure.com)):
+
+1. In the left sidebar, click the **Pipelines** rocket icon (this is the main Pipelines section, not Project Settings)
+2. Click **Environments** in the left sidebar
+3. Click **New environment**
+4. Enter name: `chainlit-rag-dev`
+5. Leave **Resource** as **None**
+6. Click **Create**
+
+> **Why two sidebars?** Azure DevOps has a left sidebar for the main Pipelines section (rocket icon) and a separate left sidebar for Project Settings (gear icon). Environments live in the main Pipelines section, not in Project Settings.
+
+---
+
+> **How it all fits together:** The pipeline service principal (created in 2.3) needs **Contributor** on the resource group to provision Azure resources on the first run. After that first run, the Bicep `rbac` module grants it only the minimal roles it needs going forward (Azure Container Registry Push, Website Contributor). The `PIPELINE_SP_OBJECT_ID` variable (2.4–2.5) is what tells Bicep which service principal to assign those roles to.
 
 ---
 
@@ -100,20 +195,35 @@ az group create \
 
 The pipeline does this automatically on every push to `main`. To deploy manually:
 
+### Set env
+```
+PIPELINE_SP_OBJECT_ID=<pipeline-sp-object-id>
+```
+
+### Dry run — shows what will change
 ```bash
-# Dry run — shows what will change
 az deployment group what-if \
   --resource-group rg-chainlit-rag-dev \
   --template-file infra/main.bicep \
   --parameters infra/parameters.dev.bicepparam \
-  --parameters pipelineServicePrincipalObjectId=<PIPELINE_SP_OBJECT_ID>
+  --parameters pipelineServicePrincipalObjectId=$PIPELINE_SP_OBJECT_ID
+```
+```
+# Expected:
+...
+Resource changes: 13 to create, 3 unsupported.
+Diagnostics (3):
+...
+```
 
-# Apply
+
+### Apply
+```
 az deployment group create \
   --resource-group rg-chainlit-rag-dev \
   --template-file infra/main.bicep \
   --parameters infra/parameters.dev.bicepparam \
-  --parameters pipelineServicePrincipalObjectId=<PIPELINE_SP_OBJECT_ID> \
+  --parameters pipelineServicePrincipalObjectId=$PIPELINE_SP_OBJECT_ID \
   --mode Incremental
 ```
 
@@ -131,7 +241,26 @@ az deployment group create \
 
 ## Step 4: Provision Key Vault Secrets (one-time)
 
-Secrets are not created by Bicep. Run these after the first successful infrastructure deploy:
+Secrets are not created by Bicep. Run these after the first successful infrastructure deploy.
+
+### 4.0 Grant yourself write access to Key Vault (one-time)
+
+The Key Vault uses the RBAC authorization model — no one has access by default, including the person who deployed it. The Bicep `rbac` module only grants the App Service's managed identity read access. You must explicitly grant yourself write access before you can set secrets.
+
+```bash
+USER_OID=$(az ad signed-in-user show --query id -o tsv)
+
+az role assignment create \
+  --role "Key Vault Secrets Officer" \
+  --assignee-object-id $USER_OID \
+  --assignee-principal-type User \
+  --scope $(az keyvault show \
+      --name kv-chainlit-rag-dev \
+      --resource-group rg-chainlit-rag-dev \
+      --query id -o tsv)
+```
+
+### 4.1 Set the secrets
 
 ```bash
 az keyvault secret set \
