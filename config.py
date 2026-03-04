@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     s3_bucket: Optional[str] = None
     s3_key: Optional[str] = None
 
+    # Azure Blob Storage (alternative to S3)
+    azure_storage_account_name: Optional[str] = None
+    azure_storage_container_name: Optional[str] = None
+    azure_storage_blob_name: Optional[str] = None
+
     # Local fallback
     data_path: str = "data"
 

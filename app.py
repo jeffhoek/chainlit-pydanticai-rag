@@ -51,7 +51,12 @@ async def on_quick_query(action: cl.Action) -> None:
 @cl.on_chat_start
 async def on_chat_start() -> None:
     """Initialize the RAG system on chat start."""
-    source = f"s3://{settings.s3_bucket}/{settings.s3_key}" if settings.s3_bucket else settings.data_path
+    if settings.azure_storage_account_name:
+        source = f"https://{settings.azure_storage_account_name}.blob.core.windows.net/{settings.azure_storage_container_name}/{settings.azure_storage_blob_name}"
+    elif settings.s3_bucket:
+        source = f"s3://{settings.s3_bucket}/{settings.s3_key}"
+    else:
+        source = settings.data_path
     await cl.Message(content=f"Loading knowledge base from {source}...").send()
 
     # Initialize OpenAI client for embeddings
