@@ -170,7 +170,21 @@ variables:
 
 This is not a secret — it is safe to commit to the repository.
 
-### 2.6 Create the Deployment Environment
+### 2.6 Create the Pipeline
+
+This registers your `azure-pipelines.yml` file with Azure DevOps so it knows how to build and deploy the app.
+
+In **Azure DevOps** ([dev.azure.com](https://dev.azure.com)):
+
+1. In the left sidebar, click the **Pipelines** rocket icon
+2. Click **Pipelines** → **New pipeline**
+3. Select **GitHub** as the source
+4. Authorize GitHub if prompted, then select the `chainlit-pydanticai-rag` repository
+5. When asked to configure, select **Existing Azure Pipelines YAML file**
+6. Set branch to `main` and path to `/azure-pipelines.yml` → click **Continue**
+7. Click the dropdown arrow next to **Run** and choose **Save** — do not run yet, finish the remaining setup steps first
+
+### 2.7 Create the Deployment Environment
 
 Azure DevOps Environments are used to track deployments and optionally require manual approval before the pipeline deploys to a given target.
 
@@ -187,7 +201,7 @@ In **Azure DevOps** ([dev.azure.com](https://dev.azure.com)):
 
 ---
 
-> **How it all fits together:** The pipeline service principal (created in 2.3) needs **Contributor** on the resource group to provision Azure resources on the first run. After that first run, the Bicep `rbac` module grants it only the minimal roles it needs going forward (Azure Container Registry Push, Website Contributor). The `PIPELINE_SP_OBJECT_ID` variable (2.4–2.5) is what tells Bicep which service principal to assign those roles to.
+> **How it all fits together:** The pipeline service principal (created in 2.3) needs **Contributor** on the resource group to provision Azure resources on the first run. After that first run, the Bicep `rbac` module grants it only the minimal roles it needs going forward (Azure Container Registry Push, Website Contributor). The `PIPELINE_SP_OBJECT_ID` variable (2.4–2.5) is what tells Bicep which service principal to assign those roles to. The pipeline (2.6) and environment (2.7) must exist before the first push to `main` will produce a successful run.
 
 ---
 
@@ -295,6 +309,23 @@ az webapp restart \
 ---
 
 ## Step 5: Upload RAG Content to Blob Storage (one-time)
+
+### 5.0 Grant yourself write access to Blob Storage (one-time)
+
+Like Key Vault, the storage account uses RBAC — you need to grant yourself access before you can upload blobs.
+
+```bash
+az role assignment create \
+  --role "Storage Blob Data Contributor" \
+  --assignee-object-id $(az ad signed-in-user show --query id -o tsv) \
+  --assignee-principal-type User \
+  --scope $(az storage account show \
+      --name stchainlitragdev \
+      --resource-group rg-chainlit-rag-dev \
+      --query id -o tsv)
+```
+
+### 5.1 Upload the content file
 
 ```bash
 az storage blob upload \
