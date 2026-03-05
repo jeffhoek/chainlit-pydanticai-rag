@@ -1,16 +1,34 @@
 from pathlib import Path
 
 import aioboto3
+from azure.identity.aio import DefaultAzureCredential
+from azure.storage.blob.aio import BlobServiceClient
 
 from config import settings
 
 
 async def load_data() -> str:
-    """Load text from S3 if configured, otherwise from local data/ directory."""
-    if settings.s3_bucket and settings.s3_key:
+    """Load text: Azure Blob → S3 → local (first configured source wins)."""
+    if settings.azure_storage_account_name and settings.azure_storage_container_name:
+        return await load_from_blob()
+    elif settings.s3_bucket and settings.s3_key:
         return await load_from_s3()
     else:
         return load_from_local(settings.data_path)
+
+
+async def load_from_blob() -> str:
+    """Fetch raw text from Azure Blob Storage using Managed Identity."""
+    account_url = f"https://{settings.azure_storage_account_name}.blob.core.windows.net"
+    async with DefaultAzureCredential() as credential:
+        async with BlobServiceClient(account_url, credential=credential) as client:
+            blob_client = client.get_blob_client(
+                container=settings.azure_storage_container_name,
+                blob=settings.azure_storage_blob_name,
+            )
+            download = await blob_client.download_blob()
+            content = await download.readall()
+            return content.decode("utf-8").replace("\r\n", "\n")
 
 
 def load_from_local(data_path: str) -> str:
