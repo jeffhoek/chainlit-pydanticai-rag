@@ -51,6 +51,7 @@ stages:
                 az acr login --name $(acrName)
 
                 docker build \
+                  --platform linux/amd64 \
                   --tag $(acrLoginServer)/$(imageRepository):$SHORT_TAG \
                   --tag $(acrLoginServer)/$(imageRepository):latest \
                   .
