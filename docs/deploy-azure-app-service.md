@@ -201,7 +201,15 @@ In **Azure DevOps** ([dev.azure.com](https://dev.azure.com)):
 
 ---
 
-> **How it all fits together:** The pipeline service principal (created in 2.3) needs **Contributor** on the resource group to provision Azure resources on the first run. After that first run, the Bicep `rbac` module grants it only the minimal roles it needs going forward (Azure Container Registry Push, Website Contributor). The `PIPELINE_SP_OBJECT_ID` variable (2.4–2.5) is what tells Bicep which service principal to assign those roles to. The pipeline (2.6) and environment (2.7) must exist before the first push to `main` will produce a successful run.
+> **How it all fits together:** The pipeline service principal (created in 2.3) needs **Owner** on the resource group for the first run — `Contributor` alone is not sufficient because the Bicep `rbac` module creates role assignments, which requires `Microsoft.Authorization/roleAssignments/write` (only available via `Owner` or `User Access Administrator`). Grant it with:
+> ```bash
+> az role assignment create \
+>   --role "Owner" \
+>   --assignee-object-id <PIPELINE_SP_OBJECT_ID> \
+>   --assignee-principal-type ServicePrincipal \
+>   --scope /subscriptions/<subscription-id>/resourceGroups/rg-chainlit-rag-dev
+> ```
+> After the first run, the Bicep `rbac` module grants the pipeline SP only the minimal ongoing roles it needs (Azure Container Registry Push, Website Contributor). The `PIPELINE_SP_OBJECT_ID` variable (2.4–2.5) is what tells Bicep which service principal to assign those roles to. The pipeline (2.6) and environment (2.7) must exist before the first push to `main` will produce a successful run.
 
 ---
 
