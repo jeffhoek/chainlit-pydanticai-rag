@@ -29,7 +29,7 @@ stages:
       - job: BuildAndPush
         displayName: Docker build and push
         pool:
-          vmImage: ubuntu-latest
+          name: Default
         steps:
           - checkout: self
             displayName: Checkout source
@@ -71,7 +71,7 @@ stages:
       - deployment: DeployBicep
         displayName: Bicep what-if and deploy
         pool:
-          vmImage: ubuntu-latest
+          name: Default
         environment: chainlit-rag-dev
         strategy:
           runOnce:
@@ -129,7 +129,7 @@ stages:
       - deployment: DeployContainer
         displayName: Update container and verify
         pool:
-          vmImage: ubuntu-latest
+          name: Default
         environment: chainlit-rag-dev
         strategy:
           runOnce:
