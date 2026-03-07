@@ -42,7 +42,7 @@ psql -h localhost -U postgresuser -d inventory -c "SELECT count(*) FROM kev_vuln
 ### 4. Start the app
 
 ```bash
-uv run python main.py
+uv run chainlit run app.py
 ```
 
 The chatbot connects to PostgreSQL on startup and displays the record count.
