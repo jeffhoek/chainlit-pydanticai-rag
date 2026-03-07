@@ -4,30 +4,49 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # API Keys
-    anthropic_api_key: str
+    # API Keys (anthropic is optional — not needed by ETL scripts)
+    anthropic_api_key: Optional[str] = None
     openai_api_key: str
 
-    # AWS Credentials (optional — only needed when using S3)
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-    aws_region: str = "us-east-1"
+    # PostgreSQL Configuration
+    database_url: Optional[str] = None
+    pg_host: str = "localhost"
+    pg_port: int = 5432
+    pg_user: str = "postgresuser"
+    pg_password: str = "postgrespw"
+    pg_database: str = "inventory"
 
-    # S3 Configuration (optional — falls back to local data/ dir if unset)
-    s3_bucket: Optional[str] = None
-    s3_key: Optional[str] = None
-
-    # Local fallback
-    data_path: str = "data"
+    def get_database_dsn(self) -> str:
+        if self.database_url:
+            return self.database_url
+        return f"postgresql://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_database}"
 
     # RAG Configuration
     top_k: int = 5
     llm_model: str = "anthropic:claude-haiku-4-5-20251001"
     system_prompt: str = (
-        "You are a helpful assistant. Use the retrieve tool to find relevant "
-        "context before answering questions. Answer the user's question helpfully "
-        "and concisely based on the retrieved context. If the answer is not in the "
-        "context, say you don't have that information."
+        "You are a security analyst assistant with access to the CISA Known "
+        "Exploited Vulnerabilities (KEV) database.\n\n"
+        "## Database Schema\n\n"
+        "TABLE: kev_vulnerabilities (\n"
+        "  cve_id VARCHAR(20),\n"
+        "  vendor_project TEXT,\n"
+        "  product TEXT,\n"
+        "  vulnerability_name TEXT,\n"
+        "  short_description TEXT,\n"
+        "  required_action TEXT,\n"
+        "  notes TEXT,\n"
+        "  date_added DATE,\n"
+        "  due_date DATE,\n"
+        "  known_ransomware_campaign_use VARCHAR(20),\n"
+        "  cwes TEXT[]\n"
+        ")\n\n"
+        "## Tools\n\n"
+        "- **retrieve**: semantic search. Use for conceptual questions "
+        "(e.g. 'tell me about Log4j').\n"
+        "- **query**: execute SQL. Always query FROM kev_vulnerabilities. "
+        "Use for counts, top-N, date filters, grouping, and listing.\n\n"
+        "Answer concisely. If the answer is not in the data, say so."
     )
 
     # Action Buttons (optional)
