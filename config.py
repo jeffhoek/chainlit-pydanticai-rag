@@ -4,21 +4,22 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # API Keys
-    anthropic_api_key: str
+    # API Keys (anthropic is optional — not needed by ETL scripts)
+    anthropic_api_key: Optional[str] = None
     openai_api_key: str
 
-    # AWS Credentials (optional — only needed when using S3)
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-    aws_region: str = "us-east-1"
+    # PostgreSQL Configuration
+    database_url: Optional[str] = None
+    pg_host: str = "localhost"
+    pg_port: int = 5432
+    pg_user: str = "postgresuser"
+    pg_password: str = "postgrespw"
+    pg_database: str = "inventory"
 
-    # S3 Configuration (optional — falls back to local data/ dir if unset)
-    s3_bucket: Optional[str] = None
-    s3_key: Optional[str] = None
-
-    # Local fallback
-    data_path: str = "data"
+    def get_database_dsn(self) -> str:
+        if self.database_url:
+            return self.database_url
+        return f"postgresql://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_database}"
 
     # RAG Configuration
     top_k: int = 5

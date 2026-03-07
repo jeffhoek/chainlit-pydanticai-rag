@@ -32,12 +32,12 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1Gi"
-          # startupProbe gives the pod up to 120s to start (S3 data load + embedding generation)
+          # startupProbe gives the pod up to 30s to start (DB connection only, no data loading)
           startupProbe:
             httpGet:
               path: /healthz
               port: 8080
-            failureThreshold: 12
+            failureThreshold: 3
             periodSeconds: 10
           # readinessProbe runs after startupProbe succeeds
           readinessProbe:
